@@ -1,0 +1,8 @@
+{
+  "name": "Kawayan HR Portal (Philippines)",
+  "description": "A government-compliant Human Resources management portal for the Philippines market.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
