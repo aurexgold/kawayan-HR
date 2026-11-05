@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { mockEmployees } from '../data/mockData';
 import { 
   calculateForm2316, 
@@ -213,6 +214,13 @@ Monthly Equivalent Tax: ₱${calculationResult.monthlyEquivalentTax.toLocaleStri
 
         {/* Global Toolbar buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/tax-2307"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 shadow-xs transition-colors"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            BIR Form 2307 (Contractors)
+          </Link>
           <button
             onClick={() => setShowRefDrawer(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-xs transition-colors"

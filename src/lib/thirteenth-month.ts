@@ -382,3 +382,150 @@ export const DOLE_STATUTORY_GUIDELINES = {
     { milestone: 'DOLE Compliance Report', deadline: 'On or before January 15', note: 'File through the DOLE Establishment Report System (reports.dole.gov.ph).' }
   ]
 };
+
+/**
+ * Generates BIR Form 2316 (Certificate of Compensation Payment / Tax Withheld)
+ * 13th-Month & Other Benefits Annualization Schedule (TRAIN Law Sec. 32(B)(7)(e))
+ */
+export function generateBir2316ScheduleCsv(
+  records: ThirteenthMonthRecord[],
+  calendarYear: number = 2024,
+  companyName: string = 'Kawayan Tech Philippines Inc.',
+  employerTin: string = '000-123-456-000'
+): string {
+  const headers = [
+    'Employee ID',
+    'Employee Full Name',
+    'Taxpayer Identification No. (TIN)',
+    'Gross 13th Month Pay (PHP)',
+    '13th Month Exempt Cap (PHP)',
+    'Box 32: Non-Taxable / Exempt Benefits (PHP)',
+    'Box 33: Taxable 13th Month Excess (PHP)',
+    'Estimated Withholding Tax (PHP)',
+    'Net 13th Month Payout (PHP)',
+    'Tax Treatment'
+  ];
+
+  const rows = records.map(r => [
+    `"${r.employeeId}"`,
+    `"${r.employeeName}"`,
+    `"${r.employeeId === 'emp-001' ? '123-456-789-000' : r.employeeId === 'emp-002' ? '987-654-321-000' : '111-222-333-000'}"`,
+    r.payableThirteenthMonth.toFixed(2),
+    r.taxExemptionCap.toFixed(2),
+    r.taxExemptAmount.toFixed(2),
+    r.taxableExcess.toFixed(2),
+    r.estimatedWithholdingTax.toFixed(2),
+    r.netTakeHome.toFixed(2),
+    r.taxableExcess > 0 ? '"Subject to Withholding Tax (Excess over ₱90k)"' : '"100% Tax-Exempt (TRAIN Law)"'
+  ]);
+
+  const metadata = [
+    '# BIR FORM 2316 ANNUALIZATION SCHEDULE - 13TH MONTH PAY & OTHER BENEFITS',
+    `# Employer: ${companyName} | Employer TIN: ${employerTin}`,
+    `# Tax Year: ${calendarYear}`,
+    '# Legal Basis: National Internal Revenue Code (NIRC) Sec. 32(B)(7)(e) as amended by RA 10963 (TRAIN Law)',
+    '# Statutory Threshold: ₱90,000.00 Non-Taxable Ceiling',
+    `# Generated: ${new Date().toISOString()}`,
+    ''
+  ].join('\n');
+
+  return metadata + [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+}
+
+/**
+ * Generates Bank Batch Disbursement File (PESONet / UnionBank / BDO / BPI formatted CSV)
+ */
+export function generateBankDisbursementBatchFile(
+  records: ThirteenthMonthRecord[],
+  bank: 'UnionBank' | 'BDO' | 'BPI' | 'PESONet' = 'UnionBank',
+  disbursementDate: string = '2024-12-20'
+): string {
+  if (bank === 'UnionBank') {
+    const headers = [
+      'Beneficiary Account Number',
+      'Beneficiary Name',
+      'Amount (PHP)',
+      'Transaction Currency',
+      'Payment Remarks',
+      'Value Date',
+      'Client Reference No'
+    ];
+    const rows = records.map((r, idx) => [
+      `"1099${(12345678 + idx).toString()}"`,
+      `"${r.employeeName}"`,
+      r.netTakeHome.toFixed(2),
+      'PHP',
+      `"13TH MONTH PAY DISBURSEMENT PD 851"`,
+      disbursementDate,
+      `"13TH-${r.employeeId}-2024"`
+    ]);
+    return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  }
+
+  // Generic PESONet / Direct Deposit format
+  const headers = [
+    'Receiving Bank Code',
+    'Account Number',
+    'Receiver Name',
+    'Amount',
+    'Purpose Code',
+    'Remittance Advice'
+  ];
+  const rows = records.map((r, idx) => [
+    'UBPPHMM1XXX',
+    `"1099${(12345678 + idx).toString()}"`,
+    `"${r.employeeName}"`,
+    r.netTakeHome.toFixed(2),
+    'SALARY_13TH',
+    `"Mandatory 13th Month Pay - ${r.employeeName}"`
+  ]);
+  return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+}
+
+/**
+ * Generates CSV template for 12-Month Payroll Actuals Import
+ */
+export function generate12MonthPayrollTemplateCsv(records: ThirteenthMonthRecord[], year: number = 2024): string {
+  const headers = [
+    'Employee ID',
+    'Employee Name',
+    'Monthly Basic (PHP)',
+    'Jan Basic', 'Jan LWOP Days',
+    'Feb Basic', 'Feb LWOP Days',
+    'Mar Basic', 'Mar LWOP Days',
+    'Apr Basic', 'Apr LWOP Days',
+    'May Basic', 'May LWOP Days',
+    'Jun Basic', 'Jun LWOP Days',
+    'Jul Basic', 'Jul LWOP Days',
+    'Aug Basic', 'Aug LWOP Days',
+    'Sep Basic', 'Sep LWOP Days',
+    'Oct Basic', 'Oct LWOP Days',
+    'Nov Basic', 'Nov LWOP Days',
+    'Dec Basic', 'Dec LWOP Days',
+    'Mid-Year Advance (PHP)'
+  ];
+
+  const rows = records.map(r => {
+    const monthCols = r.monthlyBreakdown.flatMap(m => [
+      m.isEmployed ? m.baseSalary.toString() : '0',
+      m.unpaidDays.toString()
+    ]);
+    return [
+      `"${r.employeeId}"`,
+      `"${r.employeeName}"`,
+      r.currentMonthlySalary.toString(),
+      ...monthCols,
+      r.midYearAdvanceDeducted.toString()
+    ].join(',');
+  });
+
+  const headerNotice = [
+    `# KAWAYAN HR 12-MONTH PAYROLL AGGREGATOR TEMPLATE - YEAR ${year}`,
+    '# Input actual basic pay earned per month and leave without pay (LWOP) days to auto-calculate 13th-month pay',
+    '# Formula: (Sum of Actual Basic Salaries Earned) / 12',
+    ''
+  ].join('\n');
+
+  return headerNotice + [headers.join(','), ...rows].join('\n');
+}
+

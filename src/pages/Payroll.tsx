@@ -5,7 +5,8 @@ import { calculateContributions, ContributionBreakdown } from '../lib/ph-payroll
 import { 
   Download, RefreshCw, Send, Building2, CheckCircle2, 
   Calculator, Table, FileSpreadsheet, Eye, ShieldCheck, 
-  HeartPulse, Home, Scale, DollarSign, ArrowUpRight, Search, Receipt, Landmark, Gift
+  HeartPulse, Home, Scale, DollarSign, ArrowUpRight, Search, Receipt, Landmark, Gift, Clock, FileText,
+  ArrowLeftRight
 } from 'lucide-react';
 
 import { ContributionCalculator } from '../components/payroll/ContributionCalculator';
@@ -13,16 +14,19 @@ import { PayslipModal } from '../components/payroll/PayslipModal';
 import { StatutoryTablesModal } from '../components/payroll/StatutoryTablesModal';
 import { DoleReportingModule } from '../components/attendance/DoleReportingModule';
 import { ThirteenthMonthPayEstimator } from '../components/payroll/ThirteenthMonthPayEstimator';
+import { StatutoryBracketCalculator } from '../components/payroll/StatutoryBracketCalculator';
+import { OvertimeCalculator } from '../components/payroll/OvertimeCalculator';
+import { NetToGrossCalculator } from '../components/payroll/NetToGrossCalculator';
 
 export function Payroll() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const urlTab = searchParams.get('tab') as 'calculator' | 'register' | 'remittance' | 'dole' | '13th-month' | null;
-  const [activeTab, setActiveTab] = useState<'calculator' | 'register' | 'remittance' | 'dole' | '13th-month'>(
-    urlTab && ['calculator', 'register', 'remittance', 'dole', '13th-month'].includes(urlTab) ? urlTab : 'calculator'
+  const urlTab = searchParams.get('tab') as 'calculator' | 'statutory-brackets' | 'overtime' | 'register' | 'remittance' | 'dole' | '13th-month' | 'net-to-gross' | null;
+  const [activeTab, setActiveTab] = useState<'calculator' | 'statutory-brackets' | 'overtime' | 'register' | 'remittance' | 'dole' | '13th-month' | 'net-to-gross'>(
+    urlTab && ['calculator', 'statutory-brackets', 'overtime', 'register', 'remittance', 'dole', '13th-month', 'net-to-gross'].includes(urlTab) ? urlTab : 'overtime'
   );
 
   useEffect(() => {
-    if (urlTab && ['calculator', 'register', 'remittance', 'dole', '13th-month'].includes(urlTab)) {
+    if (urlTab && ['calculator', 'statutory-brackets', 'overtime', 'register', 'remittance', 'dole', '13th-month', 'net-to-gross'].includes(urlTab)) {
       setActiveTab(urlTab);
     }
   }, [urlTab]);
@@ -143,6 +147,13 @@ export function Payroll() {
         {/* Global Toolbar buttons */}
         <div className="flex flex-wrap items-center gap-2">
           <Link
+            to="/contributions"
+            className="flex items-center text-xs font-semibold px-3.5 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-900 hover:bg-indigo-100 transition-colors shadow-xs"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+            Contributions Audit
+          </Link>
+          <Link
             to="/loans"
             className="flex items-center text-xs font-semibold px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-xs"
           >
@@ -155,6 +166,13 @@ export function Payroll() {
           >
             <Receipt className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
             BIR 2316 Calculator
+          </Link>
+          <Link
+            to="/tax-2307"
+            className="flex items-center text-xs font-semibold px-3.5 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-colors shadow-xs"
+          >
+            <FileText className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+            BIR 2307 (EWT)
           </Link>
           <button 
             onClick={() => setActiveTab('13th-month')}
@@ -176,14 +194,40 @@ export function Payroll() {
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-blue-500" />
-            DOLE Logs (CSV)
+            DOLE Logs & E-Sign
           </button>
           <button 
-            onClick={() => setShowTablesModal(true)}
-            className="flex items-center text-xs font-semibold text-slate-700 bg-white border border-slate-200 px-3.5 py-2 rounded-lg hover:bg-slate-50 shadow-xs"
+            onClick={() => setActiveTab('overtime')}
+            className={`flex items-center text-xs font-semibold px-3.5 py-2 rounded-lg border transition-colors shadow-xs ${
+              activeTab === 'overtime'
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            <Scale className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
-            Statutory Tables
+            <Clock className={`w-3.5 h-3.5 mr-1.5 ${activeTab === 'overtime' ? 'text-white' : 'text-indigo-600'}`} />
+            Overtime Calculator
+          </button>
+          <button 
+            onClick={() => setActiveTab('statutory-brackets')}
+            className={`flex items-center text-xs font-semibold px-3.5 py-2 rounded-lg border transition-colors shadow-xs ${
+              activeTab === 'statutory-brackets'
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Scale className={`w-3.5 h-3.5 mr-1.5 ${activeTab === 'statutory-brackets' ? 'text-white' : 'text-indigo-600'}`} />
+            Statutory Brackets
+          </button>
+          <button 
+            onClick={() => setActiveTab('net-to-gross')}
+            className={`flex items-center text-xs font-semibold px-3.5 py-2 rounded-lg border transition-colors shadow-xs ${
+              activeTab === 'net-to-gross'
+                ? 'bg-emerald-700 text-white border-emerald-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <ArrowLeftRight className={`w-3.5 h-3.5 mr-1.5 ${activeTab === 'net-to-gross' ? 'text-white' : 'text-emerald-600'}`} />
+            Net-to-Gross Reverse
           </button>
           <button 
             onClick={handleSimulate}
@@ -273,69 +317,127 @@ export function Payroll() {
 
 
       {/* Tabs Switcher */}
-      <div className="flex border-b border-slate-200 bg-white rounded-t-xl px-4 pt-2 gap-2 shadow-xs">
+      <div className="flex border-b border-slate-200 bg-white rounded-t-xl px-4 pt-2 gap-2 shadow-xs overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('overtime')}
+          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'overtime'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/60 rounded-t-lg'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Clock className="w-4 h-4 text-indigo-600" />
+          Overtime & Holiday Calculator (Labor Code)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('statutory-brackets')}
+          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'statutory-brackets'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/60 rounded-t-lg'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Scale className="w-4 h-4 text-indigo-600" />
+          Statutory Bracket Calculator (SSS/PhilHealth/HDMF)
+        </button>
+
         <button
           onClick={() => setActiveTab('calculator')}
-          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${
+          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'calculator'
               ? 'border-blue-600 text-blue-600 bg-blue-50/40 rounded-t-lg'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
           <Calculator className="w-4 h-4 text-blue-600" />
-          Mandatory Contributions Calculator
+          Full Net Payslip Simulator
         </button>
 
         <button
           onClick={() => setActiveTab('register')}
-          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${
+          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'register'
               ? 'border-blue-600 text-blue-600 bg-blue-50/40 rounded-t-lg'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
           <Table className="w-4 h-4 text-slate-600" />
-          Payroll Processing Register ({mockEmployees.length})
+          Payroll Register ({mockEmployees.length})
         </button>
 
         <button
           onClick={() => setActiveTab('remittance')}
-          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${
+          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'remittance'
               ? 'border-blue-600 text-blue-600 bg-blue-50/40 rounded-t-lg'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
           <FileSpreadsheet className="w-4 h-4 text-slate-600" />
-          Monthly Gov Remittance Breakdown (SSS R-3 / PhilHealth / HDMF)
+          Gov Remittances (R-3/EPRS/MCR)
         </button>
 
         <button
           onClick={() => setActiveTab('dole')}
-          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${
+          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'dole'
               ? 'border-blue-600 text-blue-600 bg-blue-50/40 rounded-t-lg'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          DOLE Mandated Time Logs & CSV
+          DOLE Logs & E-Signatures
         </button>
 
         <button
           onClick={() => setActiveTab('13th-month')}
-          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${
+          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === '13th-month'
               ? 'border-amber-600 text-amber-700 bg-amber-50/60 rounded-t-lg'
               : 'border-transparent text-slate-600 hover:text-slate-900'
           }`}
         >
           <Gift className="w-4 h-4 text-amber-500" />
-          13th Month Pay Estimator (DOLE PD 851)
+          13th Month Pay (P.D. 851)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('net-to-gross')}
+          className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'net-to-gross'
+              ? 'border-emerald-600 text-emerald-800 bg-emerald-50/70 rounded-t-lg'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <ArrowLeftRight className="w-4 h-4 text-emerald-600" />
+          Net-to-Gross Reverse Calculator
+          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 ml-1">Reverse</span>
         </button>
       </div>
 
-      {/* Tab 1: Contribution Calculator Utility */}
+      {/* Tab: Automated Overtime & Holiday Pay Calculator */}
+      {activeTab === 'overtime' && (
+        <OvertimeCalculator
+          employees={mockEmployees}
+          initialEmployeeId={selectedCalcEmployeeId}
+        />
+      )}
+
+      {/* Tab: Statutory Bracket Calculator Engine */}
+      {activeTab === 'statutory-brackets' && (
+        <StatutoryBracketCalculator
+          initialEmployeeId={selectedCalcEmployeeId}
+          initialSalary={
+            selectedCalcEmployeeId
+              ? mockEmployees.find(e => e.id === selectedCalcEmployeeId)?.basicSalary || 48000
+              : 48000
+          }
+          onSelectEmployee={(empId) => setSelectedCalcEmployeeId(empId)}
+        />
+      )}
+
+      {/* Tab 1: Full Net Payslip Simulator Utility */}
       {activeTab === 'calculator' && (
         <ContributionCalculator
           initialEmployeeId={selectedCalcEmployeeId}
@@ -639,6 +741,11 @@ export function Payroll() {
       {/* Tab 5: 13th Month Pay Estimator (DOLE PD 851) */}
       {activeTab === '13th-month' && (
         <ThirteenthMonthPayEstimator employees={mockEmployees} />
+      )}
+
+      {/* Tab 6: Net-to-Gross Reverse Calculator (TRAIN Law & Statutories) */}
+      {activeTab === 'net-to-gross' && (
+        <NetToGrossCalculator />
       )}
 
       {/* UnionBank Disbursement Modal */}

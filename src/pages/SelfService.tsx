@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   User, ShieldCheck, Lock, FileText, Download, Calendar, CalendarCheck, 
   Clock, CreditCard, Building2, AlertCircle, CheckCircle2, XCircle, 

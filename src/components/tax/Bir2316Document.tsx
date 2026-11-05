@@ -1,15 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form2316Result } from '../../lib/bir-2316';
-import { Printer, Download, CheckCircle2, AlertCircle, Shield, Building, User } from 'lucide-react';
+import { 
+  Printer, Download, CheckCircle2, AlertCircle, Shield, 
+  Building, User, ShieldCheck, PenTool, ExternalLink 
+} from 'lucide-react';
+import { 
+  AuthorizedSignatory, 
+  signatureRepository 
+} from '../../lib/signature-repository';
+import { SignaturePickerModal } from '../signatures/SignaturePickerModal';
 
 interface Bir2316DocumentProps {
   result: Form2316Result;
   onPrint?: () => void;
   onDownloadCsv?: () => void;
+  signatoryOverride?: AuthorizedSignatory | null;
 }
 
-export function Bir2316Document({ result, onPrint, onDownloadCsv }: Bir2316DocumentProps) {
+export function Bir2316Document({ result, onPrint, onDownloadCsv, signatoryOverride }: Bir2316DocumentProps) {
   const { input } = result;
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [signatory, setSignatory] = useState<AuthorizedSignatory | null>(() => {
+    return signatoryOverride !== undefined 
+      ? signatoryOverride 
+      : signatureRepository.resolveSignatureForDocument('tax-2316').signatory;
+  });
+
+  useEffect(() => {
+    if (signatoryOverride !== undefined) {
+      setSignatory(signatoryOverride);
+      return;
+    }
+    const sync = () => {
+      setSignatory(signatureRepository.resolveSignatureForDocument('tax-2316').signatory);
+    };
+    return signatureRepository.subscribe(sync);
+  }, [signatoryOverride]);
+
+  const verificationHash = signatory 
+    ? signatureRepository.generateTamperEvidentHash(signatory, `BIR-2316-${input.employeeName}`)
+    : '';
 
   const formatPHP = (val: number) => {
     return new Intl.NumberFormat('en-PH', {
@@ -43,6 +73,14 @@ export function Bir2316Document({ result, onPrint, onDownloadCsv }: Bir2316Docum
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsPickerOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors"
+            title="Change Authorized Signatory from Central Repository"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            Signatory: {signatory ? signatory.fullName.split(',')[0] : 'Auto-Assign'}
+          </button>
           {onDownloadCsv && (
             <button
               onClick={onDownloadCsv}
@@ -373,21 +411,66 @@ export function Bir2316Document({ result, onPrint, onDownloadCsv }: Bir2316Docum
             I declare, under the penalties of perjury, that this certificate has been made in good faith, verified by me, and to the best of my knowledge and belief, is true and correct pursuant to the provisions of the National Internal Revenue Code, as amended, and the regulations issued under authority thereof.
           </p>
 
+          {/* Cryptographic Seal if signed */}
+          {verificationHash && (
+            <div className="p-2 bg-emerald-50 border border-emerald-300 rounded flex items-center justify-between text-[10px] text-emerald-900 font-mono">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <span>Digitally Sealed & Certified: {verificationHash}</span>
+              </div>
+              <span className="text-[9px] text-emerald-700">RA 8792 Valid</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4">
-            <div className="text-center border-t border-slate-700 pt-1">
-              <div className="font-bold text-slate-900 uppercase">{input.employerName || 'Kawayan Cooperative HR Inc.'}</div>
-              <div className="text-slate-500">Present Employer / Authorized Signatory Representative</div>
-              <div className="text-[9px] text-slate-400 font-mono mt-0.5">TIN: {input.employerTin || '009-876-543-000'}</div>
+            <div className="text-center pt-1">
+              <div className="min-h-[46px] flex items-end justify-center pb-1">
+                {signatory?.signatureDataUrl ? (
+                  <img
+                    src={signatory.signatureDataUrl}
+                    alt="Authorized Signatory"
+                    className="max-h-12 object-contain mx-auto"
+                  />
+                ) : (
+                  <div className="text-[10px] text-slate-400 italic">Signature over Printed Name</div>
+                )}
+              </div>
+              <div className="border-t border-slate-700 pt-1">
+                <div className="font-bold text-slate-900 uppercase">
+                  {signatory ? signatory.fullName : (input.employerName || 'Kawayan Cooperative HR Inc.')}
+                </div>
+                <div className="text-slate-500">
+                  {signatory ? signatory.title : 'Present Employer / Authorized Signatory Representative'}
+                </div>
+                <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                  TIN: {signatory?.tin || input.employerTin || '009-876-543-000'}
+                  {signatory?.prcLicenseNo ? ` • ${signatory.prcLicenseNo}` : ''}
+                </div>
+              </div>
             </div>
 
-            <div className="text-center border-t border-slate-700 pt-1">
-              <div className="font-bold text-slate-900 uppercase">{input.employeeName}</div>
-              <div className="text-slate-500">Employee / Taxpayer Signature Over Printed Name</div>
-              <div className="text-[9px] text-slate-400 font-mono mt-0.5">TIN: {input.tin || '000-000-000-000'}</div>
+            <div className="text-center pt-1">
+              <div className="min-h-[46px] flex items-end justify-center pb-1">
+                <div className="text-[10px] text-slate-400 italic">Employee Signature over Printed Name</div>
+              </div>
+              <div className="border-t border-slate-700 pt-1">
+                <div className="font-bold text-slate-900 uppercase">{input.employeeName}</div>
+                <div className="text-slate-500">Employee / Taxpayer Signature Over Printed Name</div>
+                <div className="text-[9px] text-slate-400 font-mono mt-0.5">TIN: {input.tin || '000-000-000-000'}</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Signature Picker Modal */}
+      <SignaturePickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        category="tax-2316"
+        currentSignatoryId={signatory?.id}
+        onSelectSignatory={(s) => setSignatory(s)}
+      />
     </div>
   );
 }

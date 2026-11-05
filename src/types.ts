@@ -2,16 +2,22 @@ export type Employee = {
   id: string;
   firstName: string;
   lastName: string;
+  middleName?: string;
   email: string;
+  phone?: string;
   role: string;
   department: string;
+  employmentType?: 'Regular' | 'Probationary' | 'Project-Based' | 'Executive' | 'Consultant';
   status: 'Active' | 'On Leave' | 'Terminated';
   joinDate: string;
   basicSalary: number; // in PHP
+  allowance?: number; // De minimis / fixed allowance in PHP
   tin: string;
   sssNumber: string;
   philhealthNumber: string;
   pagibigNumber: string;
+  hmoPlan?: string;
+  hmoEnrolled?: boolean;
   leaveBalances: {
     sil: number;
     sick: number;

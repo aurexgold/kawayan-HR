@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Employee } from '../../types';
 import { 
   calculateCompanyThirteenthMonthSummary, 
@@ -13,8 +14,9 @@ import {
   Gift, Calendar, Download, Printer, Search, 
   Info, AlertTriangle, Scale, DollarSign, 
   Building2, Sliders, ChevronRight, X, FileText,
-  ShieldCheck, Calculator, CheckCircle2
+  ShieldCheck, Calculator, CheckCircle2, ExternalLink
 } from 'lucide-react';
+import { ThirteenthMonthCalculatorView } from './ThirteenthMonthCalculatorView';
 
 interface ThirteenthMonthPayEstimatorProps {
   employees: Employee[];
@@ -22,7 +24,7 @@ interface ThirteenthMonthPayEstimatorProps {
 
 export function ThirteenthMonthPayEstimator({ employees }: ThirteenthMonthPayEstimatorProps) {
   const [selectedYear, setSelectedYear] = useState<number>(2024);
-  const [viewMode, setViewMode] = useState<'ledger' | 'inspector' | 'compliance'>('ledger');
+  const [viewMode, setViewMode] = useState<'calculator' | 'ledger' | 'inspector' | 'compliance'>('calculator');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState<string>('ALL');
   const [filterProRated, setFilterProRated] = useState<'ALL' | 'PRORATED' | 'FULL_YEAR'>('ALL');
@@ -202,6 +204,14 @@ export function ThirteenthMonthPayEstimator({ employees }: ThirteenthMonthPayEst
               <Download className="w-4 h-4" />
               DOLE CSV Report
             </button>
+
+            <Link
+              to="/thirteenth-month"
+              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-amber-950 text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Open Full 13th-Month Module
+            </Link>
           </div>
         </div>
       </div>
@@ -282,10 +292,22 @@ export function ThirteenthMonthPayEstimator({ employees }: ThirteenthMonthPayEst
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex border-b border-slate-200 bg-white rounded-xl p-1 gap-1 shadow-xs">
+      <div className="flex border-b border-slate-200 bg-white rounded-xl p-1 gap-1 shadow-xs overflow-x-auto">
+        <button
+          onClick={() => setViewMode('calculator')}
+          className={`flex-1 min-w-[200px] py-2.5 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition-all ${
+            viewMode === 'calculator'
+              ? 'bg-amber-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <Calculator className="w-4 h-4" />
+          Automated P.D. 851 Calculator & Voucher
+        </button>
+
         <button
           onClick={() => setViewMode('ledger')}
-          className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition-all ${
+          className={`flex-1 min-w-[200px] py-2.5 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition-all ${
             viewMode === 'ledger'
               ? 'bg-blue-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -297,19 +319,19 @@ export function ThirteenthMonthPayEstimator({ employees }: ThirteenthMonthPayEst
 
         <button
           onClick={() => setViewMode('inspector')}
-          className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition-all ${
+          className={`flex-1 min-w-[200px] py-2.5 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition-all ${
             viewMode === 'inspector'
               ? 'bg-blue-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Sliders className="w-4 h-4" />
-          Individual Pro-Ration Inspector & Simulator
+          Individual Pro-Ration Inspector
         </button>
 
         <button
           onClick={() => setViewMode('compliance')}
-          className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition-all ${
+          className={`flex-1 min-w-[200px] py-2.5 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition-all ${
             viewMode === 'compliance'
               ? 'bg-blue-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -319,6 +341,17 @@ export function ThirteenthMonthPayEstimator({ employees }: ThirteenthMonthPayEst
           DOLE PD 851 Guidelines & Regional Report
         </button>
       </div>
+
+      {/* VIEW 0: AUTOMATED P.D. 851 CALCULATOR */}
+      {viewMode === 'calculator' && (
+        <ThirteenthMonthCalculatorView
+          employees={employees}
+          onSelectEmployeeForInspector={(empId) => {
+            setSelectedEmpId(empId);
+            setViewMode('inspector');
+          }}
+        />
+      )}
 
       {/* VIEW 1: COMPANY-WIDE BATCH LEDGER */}
       {viewMode === 'ledger' && (

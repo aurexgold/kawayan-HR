@@ -1,6 +1,8 @@
-import { useRef } from 'react';
-import { X, Printer, Download, Building, CheckCircle2, ShieldCheck, HeartPulse, Home, Scale } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { X, Printer, Download, Building, CheckCircle2, ShieldCheck, HeartPulse, Home, Scale, PenTool } from 'lucide-react';
 import { ContributionBreakdown } from '../../lib/ph-payroll';
+import { AuthorizedSignatory, signatureRepository } from '../../lib/signature-repository';
+import { SignaturePickerModal } from '../signatures/SignaturePickerModal';
 
 interface PayslipModalProps {
   isOpen: boolean;
@@ -30,6 +32,17 @@ export function PayslipModal({
   payPeriod = 'October 1 - October 31, 2026',
 }: PayslipModalProps) {
   const payslipRef = useRef<HTMLDivElement>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [signatory, setSignatory] = useState<AuthorizedSignatory | null>(() => {
+    return signatureRepository.resolveSignatureForDocument('payroll').signatory;
+  });
+
+  useEffect(() => {
+    const sync = () => {
+      setSignatory(signatureRepository.resolveSignatureForDocument('payroll').signatory);
+    };
+    return signatureRepository.subscribe(sync);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -46,6 +59,14 @@ export function PayslipModal({
             <span className="text-sm font-bold">Philippine Payslip & Contribution Breakdown</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsPickerOpen(true)}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 border border-slate-700 transition-colors"
+              title="Select or change authorized payroll signatory from repository"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Signatory: {signatory ? signatory.fullName.split(' ')[0] : 'Auto'}</span>
+            </button>
             <button
               onClick={handlePrint}
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
@@ -279,18 +300,58 @@ export function PayslipModal({
           </div>
 
           {/* Signature lines */}
-          <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-200 text-xs text-slate-500">
-            <div className="text-center space-y-8">
+          <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200 text-xs text-slate-500">
+            <div className="text-center">
+              <div className="min-h-[46px] flex items-end justify-center pb-1">
+                {signatory?.signatureDataUrl ? (
+                  <img
+                    src={signatory.signatureDataUrl}
+                    alt="Authorized Payroll Signatory"
+                    className="max-h-12 object-contain mx-auto"
+                  />
+                ) : (
+                  <div className="text-[10px] text-slate-400 italic">Signature over Printed Name</div>
+                )}
+              </div>
               <div className="border-b border-slate-300 w-3/4 mx-auto" />
-              <span>Prepared By: HR & Payroll Department</span>
+              <div className="pt-1">
+                <span className="font-bold text-slate-900 block text-xs">
+                  {signatory ? signatory.fullName : 'Prepared By: HR & Payroll Department'}
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  {signatory ? signatory.title : 'Total Rewards & Payroll Operations'}
+                </span>
+                {signatory && (
+                  <span className="text-[9px] text-emerald-700 font-mono block mt-0.5">
+                    Digitally Sealed: {signatureRepository.generateTamperEvidentHash(signatory, `PAYSLIP-${employeeName}`)}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="text-center space-y-8">
+
+            <div className="text-center">
+              <div className="min-h-[46px] flex items-end justify-center pb-1">
+                <div className="text-[10px] text-slate-400 italic">Employee Signature over Printed Name</div>
+              </div>
               <div className="border-b border-slate-300 w-3/4 mx-auto" />
-              <span>Employee Acknowledgment</span>
+              <div className="pt-1">
+                <span className="font-bold text-slate-900 block text-xs">{employeeName}</span>
+                <span className="text-[11px] text-slate-500 block">Employee Acknowledgment</span>
+                <span className="text-[9px] text-slate-400 font-mono block mt-0.5">TIN: {tin}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Signature Picker Modal */}
+      <SignaturePickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        category="payroll"
+        currentSignatoryId={signatory?.id}
+        onSelectSignatory={(s) => setSignatory(s)}
+      />
     </div>
   );
 }

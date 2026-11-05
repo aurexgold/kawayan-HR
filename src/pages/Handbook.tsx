@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   BookOpen, Sparkles, ShieldCheck, Printer, Download, 
   Search, FileText, CheckCircle2, Sliders, ChevronRight,
-  Building2, Scale, AlertCircle, FileCheck, Layers
+  Building2, Scale, AlertCircle, FileCheck, Layers, PenTool
 } from 'lucide-react';
 import { 
   HandbookChapter, 
@@ -181,6 +182,15 @@ export function Handbook() {
               <FileText className="w-4 h-4 text-amber-400" />
               <span>Sign-off Form</span>
             </button>
+
+            <Link
+              to="/signatures"
+              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-xl flex items-center gap-2 transition-colors"
+              title="Manage Central Authorized Signatures Repository"
+            >
+              <PenTool className="w-4 h-4 text-blue-400" />
+              <span>Signatures</span>
+            </Link>
 
             <div className="h-6 w-px bg-slate-700 hidden sm:block" />
 

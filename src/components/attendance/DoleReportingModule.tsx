@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   FileSpreadsheet, Download, ShieldCheck, Printer, CheckCircle2, 
   Search, Calendar, Clock, AlertCircle, FileText, Filter, 
-  ExternalLink, ChevronDown, ChevronUp, Sparkles, Building2, User
+  ExternalLink, ChevronDown, ChevronUp, Sparkles, Building2, User,
+  PenTool, Award
 } from 'lucide-react';
 import { mockEmployees } from '../../data/mockData';
 import { 
@@ -14,6 +15,9 @@ import {
   DayClassification 
 } from '../../lib/dole-reporting';
 import { DolePrintableReportModal } from './DolePrintableReportModal';
+import { ESignatureModal, DigitalSignatureData } from '../common/ESignatureModal';
+import { signatureRepository, AuthorizedSignatory } from '../../lib/signature-repository';
+import { SignaturePickerModal } from '../signatures/SignaturePickerModal';
 
 export function DoleReportingModule() {
   const [selectedPeriod, setSelectedPeriod] = useState<'current' | 'previous'>('current');
@@ -21,7 +25,35 @@ export function DoleReportingModule() {
   const [selectedClassification, setSelectedClassification] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
+  const [showSignModal, setShowSignModal] = useState<boolean>(false);
+  const [showPickerModal, setShowPickerModal] = useState<boolean>(false);
+  
+  // Resolve default DOLE signatory from repository
+  const resolveRepoDoleSignature = (): DigitalSignatureData | null => {
+    const res = signatureRepository.resolveSignatureForDocument('dole');
+    if (!res.signatory) return null;
+    return {
+      signatureDataUrl: res.signatory.signatureDataUrl,
+      signerName: res.signatory.fullName,
+      signerTitle: res.signatory.title,
+      accreditationNo: res.signatory.doleAccreditationNo || res.signatory.prcLicenseNo || 'DOLE-OSH-NCR-2023-0881',
+      signedAt: res.signingDate,
+      verificationHash: res.verificationHash,
+      signatureType: res.signatory.signatureType === 'drawn' ? 'drawn' : 'typed',
+      companyName: 'Kawayan HR Philippines Inc.',
+    };
+  };
+
+  const [signature, setSignature] = useState<DigitalSignatureData | null>(() => resolveRepoDoleSignature());
   const [showGuidance, setShowGuidance] = useState<boolean>(false);
+
+  // Sync with repository changes
+  useEffect(() => {
+    const sync = () => {
+      setSignature(resolveRepoDoleSignature());
+    };
+    return signatureRepository.subscribe(sync);
+  }, []);
 
   // Date range
   const periodDates = selectedPeriod === 'current' 
@@ -54,7 +86,20 @@ export function DoleReportingModule() {
 
   // CSV Downloads
   const handleDownloadPopulatedCsv = () => {
-    const csv = generateDoleCsvString(filteredLogs, 'populated');
+    let csv = generateDoleCsvString(filteredLogs, 'populated');
+    if (signature) {
+      const signatureBanner = [
+        `"# --- DOLE MANDATED DIGITAL E-SIGNATURE VERIFICATION SEAL ---"`,
+        `"# Signatory: ${signature.signerName} (${signature.signerTitle})"`,
+        `"# Accreditation: ${signature.accreditationNo}"`,
+        `"# Signed At: ${signature.signedAt}"`,
+        `"# Tamper-Evident Hash: ${signature.verificationHash}"`,
+        `"# Statutory Basis: Republic Act 8792 (E-Commerce Act) / DOLE D.O. 198-18 (OSH Standards)"`,
+        `"# -----------------------------------------------------------"`,
+        ``
+      ].join('\r\n');
+      csv = signatureBanner + csv;
+    }
     const filename = `DOLE_Mandated_Employee_Logs_${periodDates.start}_to_${periodDates.end}.csv`;
     downloadDoleCsv(csv, filename);
   };
@@ -72,9 +117,22 @@ export function DoleReportingModule() {
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-blue-500/10 to-transparent pointer-events-none" />
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 relative z-10">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-semibold border border-blue-400/30">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-              DOLE General Labor Standards (GLS) Rule 1020 / Book III
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-semibold border border-blue-400/30">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                DOLE General Labor Standards (GLS) Rule 1020 / Book III
+              </div>
+              {signature ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-xs font-semibold border border-emerald-400/30">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  E-Signed by {signature.signerName}
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-full text-xs font-semibold border border-amber-400/30">
+                  <PenTool className="w-3.5 h-3.5 text-amber-400" />
+                  Pending HR E-Sign
+                </div>
+              )}
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-white">
               DOLE Mandated Employee Logs & Timesheet Reporting
@@ -86,12 +144,28 @@ export function DoleReportingModule() {
 
           <div className="flex flex-wrap items-center gap-2.5">
             <button
+              onClick={() => setShowPickerModal(true)}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg border border-slate-700 flex items-center gap-1.5 transition-colors shadow-xs"
+              title="Select or change authorized signatory from Central Signature Repository"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Signatory: {signature ? signature.signerName.split(' ')[0] : 'Auto'}</span>
+            </button>
+            <button
+              onClick={() => setShowSignModal(true)}
+              className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-all shadow-md ring-2 ring-blue-400/20"
+              title="Sign mandated logs digitally with official DOLE accreditation"
+            >
+              <PenTool className="w-4 h-4 text-white" />
+              {signature ? 'Custom Draw / E-Sign' : 'E-Sign Mandated Logs'}
+            </button>
+            <button
               onClick={handleDownloadTemplateCsv}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg border border-slate-700 flex items-center gap-2 transition-colors shadow-xs"
               title="Download standardized empty CSV template with field definitions and sample rows"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-              Download Blank Template (CSV)
+              Blank Template (CSV)
             </button>
             <button
               onClick={handleDownloadPopulatedCsv}
@@ -99,14 +173,14 @@ export function DoleReportingModule() {
               title="Download current period mandated logs with all employee entries formatted for DOLE inspection"
             >
               <Download className="w-4 h-4" />
-              Download Populated Logs (CSV)
+              {signature ? 'Download Signed CSV' : 'Download Logs (CSV)'}
             </button>
             <button
               onClick={() => setShowPrintModal(true)}
               className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg flex items-center gap-2 transition-colors shadow-sm"
             >
               <Printer className="w-4 h-4" />
-              Form DTR-GLS
+              Inspect & Print Form DTR-GLS
             </button>
           </div>
         </div>
@@ -414,6 +488,42 @@ export function DoleReportingModule() {
         logs={filteredLogs}
         summary={summary}
         dateRangeText={periodDates.text}
+        initialSignature={signature}
+        onSignatureChange={setSignature}
+      />
+
+      {/* Standalone E-Signature Modal */}
+      <ESignatureModal
+        isOpen={showSignModal}
+        onClose={() => setShowSignModal(false)}
+        onSaveSignature={(sig) => setSignature(sig)}
+        documentTitle={`DOLE Mandated Logs (${periodDates.text})`}
+        initialSignerName={signature?.signerName || 'Maria Clara'}
+        initialSignerTitle={signature?.signerTitle || 'HR & Labor Compliance Manager'}
+        initialAccreditation={signature?.accreditationNo || 'DOLE-OSH-NCR-2023-0881 | PRC HR #0041289'}
+      />
+
+      {/* Central Repository Signature Picker */}
+      <SignaturePickerModal
+        isOpen={showPickerModal}
+        onClose={() => setShowPickerModal(false)}
+        category="dole"
+        onSelectSignatory={(sig) => {
+          if (sig) {
+            setSignature({
+              signatureDataUrl: sig.signatureDataUrl,
+              signerName: sig.fullName,
+              signerTitle: sig.title,
+              accreditationNo: sig.doleAccreditationNo || sig.prcLicenseNo || 'DOLE-OSH-NCR-2023-0881',
+              signedAt: new Date().toISOString().split('T')[0],
+              verificationHash: signatureRepository.generateTamperEvidentHash(sig, 'DOLE-GLS'),
+              signatureType: 'drawn',
+              companyName: 'Kawayan HR Philippines Inc.',
+            });
+          } else {
+            setSignature(null);
+          }
+        }}
       />
     </div>
   );

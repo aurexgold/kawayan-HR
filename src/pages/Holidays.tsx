@@ -3,15 +3,17 @@ import {
   Calendar, Plus, Calculator, Download, Filter, Search, 
   ShieldCheck, CheckCircle2, AlertCircle, Clock, MapPin, 
   ChevronLeft, ChevronRight, Sparkles, HelpCircle, ArrowUpRight, 
-  Scale, FileSpreadsheet, Eye
+  Scale, FileSpreadsheet, Eye, RotateCcw
 } from 'lucide-react';
 import { format, parseISO, isSameDay, getMonth, getYear, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns';
-import { INITIAL_PH_HOLIDAYS_2026, PhilippineHoliday, HolidayType } from '../data/phHolidays';
+import { PhilippineHoliday, HolidayType } from '../data/phHolidays';
+import { useHolidays } from '../lib/holidays-store';
 import { HolidayPayCalculatorModal } from '../components/holidays/HolidayPayCalculatorModal';
 import { AddHolidayModal } from '../components/holidays/AddHolidayModal';
+import { ProclamationGeneratorModal } from '../components/holidays/ProclamationGeneratorModal';
 
 export function Holidays() {
-  const [holidays, setHolidays] = useState<PhilippineHoliday[]>(INITIAL_PH_HOLIDAYS_2026);
+  const { holidays, addHoliday, mergeHolidays, resetToDefault } = useHolidays();
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [currentCalendarDate, setCurrentCalendarDate] = useState<Date>(new Date(2026, 9, 1)); // October 2026
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
@@ -22,6 +24,7 @@ export function Holidays() {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [selectedHolidayForCalc, setSelectedHolidayForCalc] = useState<PhilippineHoliday | undefined>(undefined);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
 
   // Sync state notification
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
@@ -68,9 +71,17 @@ export function Holidays() {
   };
 
   const handleAddHoliday = (newHol: PhilippineHoliday) => {
-    setHolidays(prev => [newHol, ...prev]);
+    addHoliday(newHol);
     setSyncStatus(`Added "${newHol.name}" and synced to attendance rules.`);
     setTimeout(() => setSyncStatus(null), 4000);
+  };
+
+  const handleApplyGeneratedHolidays = (generated: PhilippineHoliday[], replaceYear?: number) => {
+    mergeHolidays(generated, replaceYear);
+    const yearToFocus = replaceYear || (generated[0] ? new Date(generated[0].date).getFullYear() : 2026);
+    setCurrentCalendarDate(new Date(yearToFocus, 0, 1)); // Jump to January of that target year
+    setSyncStatus(`Successfully generated and applied ${generated.length} official holidays for Year ${yearToFocus} to the system calendar.`);
+    setTimeout(() => setSyncStatus(null), 5000);
   };
 
   const handleOpenCalculator = (holiday?: PhilippineHoliday) => {
@@ -81,7 +92,7 @@ export function Holidays() {
   const handleSyncAttendance = () => {
     setSyncStatus('Synchronizing holiday calendars with biometric time clocks and payroll cut-offs...');
     setTimeout(() => {
-      setSyncStatus('Success! 22 statutory holidays synced with Biometric Terminals & DOLE Timesheet rules.');
+      setSyncStatus(`Success! ${holidays.length} statutory holidays synced with Biometric Terminals & DOLE Timesheet rules.`);
       setTimeout(() => setSyncStatus(null), 4000);
     }, 1200);
   };
@@ -125,7 +136,7 @@ export function Holidays() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Philippines_Holidays_Schedule_2026.csv`);
+    link.setAttribute("download", `Philippines_Holidays_Schedule_${currentCalendarDate.getFullYear()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -139,7 +150,7 @@ export function Holidays() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Philippine Holiday Calendar Tracker</h1>
             <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-              Proclamations 2026
+              Proclamations {currentCalendarDate.getFullYear()}
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
@@ -149,6 +160,14 @@ export function Holidays() {
 
         {/* Global Toolbar buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsGeneratorModalOpen(true)}
+            className="flex items-center text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 px-3.5 py-2 rounded-lg transition-colors shadow-xs"
+            title="Automatically generate gazetted holidays for current or upcoming year based on Presidential Proclamations"
+          >
+            <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
+            Auto-Generate Proclamation Schedule
+          </button>
           <button
             onClick={() => handleOpenCalculator()}
             className="flex items-center text-xs font-semibold text-slate-700 bg-white border border-slate-200 px-3.5 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-xs"
@@ -548,6 +567,13 @@ export function Holidays() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddHoliday={handleAddHoliday}
+      />
+
+      <ProclamationGeneratorModal
+        isOpen={isGeneratorModalOpen}
+        onClose={() => setIsGeneratorModalOpen(false)}
+        onApplyHolidays={handleApplyGeneratedHolidays}
+        currentYear={currentCalendarDate.getFullYear()}
       />
     </div>
   );
